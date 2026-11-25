@@ -1,4 +1,4 @@
-  # ───────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────
 # AMORCE DE PIPELINE CI/CD — À COMPLÉTER PAR VOUS (Phase 4 du TP)
 #
 # Ce fichier est un EXEMPLE commenté : il n'est PAS exécuté tel quel.
@@ -66,7 +66,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python seed.py
-          nohup uvicorn app.main:app --port 8000 &
+          nohup uvicorn app.main:app --port 8000 > /tmp/uvicorn.log 2>&1 &
       - name: Installer le frontend
         working-directory: frontend
         run: npm ci
@@ -76,14 +76,14 @@ jobs:
       - name: Tests Cypress (headless)
         working-directory: frontend
         run: |
-          npm run dev &
+          npm run dev > /tmp/vite.log 2>&1 &
           # Attendre que le frontend ET le backend répondent avant de lancer
           # Cypress (sinon les tests échouent aléatoirement au démarrage).
           npx wait-on http://localhost:5173 http://localhost:8000/api/v1/health
           npx cypress run
 
- # Pistes d'approfondissement (4A attendu / 5A bonus) :
- #   - quality gate chiffré (couverture minimale)
- #   - badge de build dans le README
- #   - branches protégées (PR validée par la CI avant merge sur main)
- #   - déploiement continu du frontend sur merge vers main
+# Pistes d'approfondissement (4A attendu / 5A bonus) :
+#   - quality gate chiffré (couverture minimale)
+#   - badge de build dans le README
+#   - branches protégées (PR validée par la CI avant merge sur main)
+#   - déploiement continu du frontend sur merge vers main
