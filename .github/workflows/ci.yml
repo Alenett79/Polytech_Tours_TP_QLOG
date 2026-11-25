@@ -52,6 +52,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -60,13 +61,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Démarrer le backend
+      - name: Installer le backend
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python seed.py
-          nohup uvicorn app.main:app --port 8000 > /tmp/uvicorn.log 2>&1 &
       - name: Installer le frontend
         working-directory: frontend
         run: npm ci
@@ -74,13 +74,20 @@ jobs:
         working-directory: frontend
         run: npm run lint
       - name: Tests Cypress (headless)
-        working-directory: frontend
         run: |
-          npm run dev > /tmp/vite.log 2>&1 &
-          # Attendre que le frontend ET le backend répondent avant de lancer
-          # Cypress (sinon les tests échouent aléatoirement au démarrage).
-          npx wait-on http://localhost:5173 http://localhost:8000/api/v1/health
-          npx cypress run
+          (cd backend && uvicorn app.main:app --port 8000 > /tmp/uvicorn.log 2>&1) &
+          BACK_PID=$!
+          (cd frontend && npm run dev > /tmp/vite.log 2>&1) &
+          FRONT_PID=$!
+          trap "kill $BACK_PID $FRONT_PID 2>/dev/null || true" EXIT
+
+          npx wait-on -t 30000 http://localhost:5173 http://localhost:8000/api/v1/health || {
+            echo "=== LOGS BACKEND ===" && cat /tmp/uvicorn.log
+            echo "=== LOGS FRONTEND ===" && cat /tmp/vite.log
+            exit 1
+          }
+
+          cd frontend && npx cypress run
 
 # Pistes d'approfondissement (4A attendu / 5A bonus) :
 #   - quality gate chiffré (couverture minimale)
